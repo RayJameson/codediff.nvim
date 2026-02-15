@@ -166,15 +166,21 @@ function M.refresh(history)
       history.tree:set_nodes(tree_nodes)
 
       -- Re-expand previously expanded commits and reload their files
+      local has_pending_expand = false
       if history._load_commit_files then
         for _, node in ipairs(history.tree:get_nodes() or {}) do
           if node.data and node.data.type == "commit" and expanded_hashes[node.data.hash] then
+            has_pending_expand = true
             history._load_commit_files(node)
           end
         end
       end
 
-      history.tree:render()
+      -- Skip render if expanded commits are being reloaded async
+      -- (_load_commit_files triggers its own render when files arrive)
+      if not has_pending_expand then
+        history.tree:render()
+      end
 
       -- Restore cursor position
       if vim.api.nvim_win_is_valid(history.winid) then

@@ -450,6 +450,8 @@ function M.navigate_next(history)
   if current_index >= #all_files and not config.options.diff.cycle_next_file then
     vim.api.nvim_echo({ { string.format("Last file (%d of %d)", #all_files, #all_files), "WarningMsg" } }, false, {})
     return
+  else
+    vim.api.nvim_echo({}, false, {})
   end
 
   local next_index = current_index % #all_files + 1
@@ -494,6 +496,8 @@ function M.navigate_prev(history)
   if current_index <= 1 and not config.options.diff.cycle_next_file then
     vim.api.nvim_echo({ { string.format("First file (1 of %d)", #all_files), "WarningMsg" } }, false, {})
     return
+  else
+    vim.api.nvim_echo({}, false, {})
   end
 
   local prev_index = current_index - 2

@@ -7,22 +7,12 @@ vim.env.VSCODE_DIFF_NO_AUTO_INSTALL = "1"
 -- Disable ShaDa (fixes Windows permission issues in CI)
 vim.opt.shadafile = "NONE"
 
--- Disable vim.loader - it overrides require() with rtp-only resolution
--- which breaks when tests change CWD (making relative rtp "." point elsewhere)
-vim.loader.enable(false)
-
--- Determine project root from this file's location (stable even when CWD changes)
-local this_file = debug.getinfo(1, "S").source:sub(2) -- remove @ prefix
-local tests_dir = vim.fn.fnamemodify(this_file, ":p:h")
-local project_root = vim.fn.fnamemodify(tests_dir, ":h")
-
--- Add project root to runtimepath
-vim.opt.rtp:prepend(project_root)
+-- Add current directory to runtimepath
+local cwd = vim.fn.getcwd()
+vim.opt.rtp:prepend(cwd)
 
 -- Ensure lua/ directory is in package.path for direct requires
--- Use absolute paths so modules remain findable even after CWD changes
-local lua_dir = (project_root .. "/lua"):gsub("\\", "/")
-package.path = lua_dir .. "/?.lua;" .. lua_dir .. "/?/init.lua;" .. package.path
+package.path = package.path .. ";" .. cwd .. "/lua/?.lua;" .. cwd .. "/lua/?/init.lua"
 
 vim.opt.swapfile = false
 

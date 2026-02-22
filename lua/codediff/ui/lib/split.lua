@@ -66,6 +66,15 @@ function Split:_create_window()
 
   self.winid = vim.api.nvim_open_win(self.bufnr, false, win_config)
   self:_apply_win_options()
+
+  -- Force size after creation (wincmd = from callers can override the config size)
+  if self.winid and vim.api.nvim_win_is_valid(self.winid) then
+    if self._position == "left" or self._position == "right" then
+      vim.api.nvim_win_set_width(self.winid, self._size)
+    else
+      vim.api.nvim_win_set_height(self.winid, self._size)
+    end
+  end
 end
 
 --- Mount the split: create buffer and window

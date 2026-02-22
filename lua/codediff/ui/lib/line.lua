@@ -8,7 +8,7 @@ function Line.new()
   return setmetatable({ _segments = {} }, Line)
 end
 
--- Allow Line() constructor syntax (matches NuiLine())
+-- Allow Line() constructor syntax
 setmetatable(Line, {
   __call = function(cls)
     return cls.new()

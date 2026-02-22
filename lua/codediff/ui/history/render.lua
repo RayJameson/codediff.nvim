@@ -227,7 +227,7 @@ function M.create(commits, git_root, tabpage, width, opts)
         data.files_loaded = true
         data.file_count = #files
 
-        -- NUI Tree doesn't have a direct "add children" API, so we need to rebuild
+        -- Tree doesn't have a direct "add children" API, so we need to rebuild
         -- For now, we'll use set_nodes on the commit node
         for _, file_node in ipairs(file_nodes) do
           tree:add_node(file_node, commit_node:get_id())
@@ -664,6 +664,10 @@ function M.toggle_visibility(history)
     history.winid = history.split.winid
     vim.schedule(function()
       vim.cmd("wincmd =")
+      -- Restore history panel size after equalize
+      if history.split.winid and vim.api.nvim_win_is_valid(history.split.winid) then
+        vim.api.nvim_win_set_height(history.split.winid, history.split._size)
+      end
     end)
   else
     history.split:hide()

@@ -106,6 +106,7 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
         folder_open = "",    -- Nerd Font folder-open icon
       },
       view_mode = "list",    -- "list" or "tree"
+      flatten_dirs = true,   -- Flatten single-child directory chains in tree view
       file_filter = {
         ignore = { ".git/**", ".jj/**" },  -- Glob patterns to hide (e.g., {"*.lock", "dist/*"})
       },

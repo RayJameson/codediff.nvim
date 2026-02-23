@@ -730,12 +730,12 @@ function M.restore_file(git_root, rel_path, callback)
   end)
 end
 
--- Delete untracked file (git clean -f)
+-- Delete untracked file or directory (git clean -fd)
 -- git_root: absolute path to git repository root
 -- rel_path: relative path from git root
 -- callback: function(err)
 function M.delete_untracked(git_root, rel_path, callback)
-  run_git_async({ "clean", "-f", "--", rel_path }, { cwd = git_root }, function(err, _)
+  run_git_async({ "clean", "-fd", "--", rel_path }, { cwd = git_root }, function(err, _)
     if err then
       callback("Failed to delete untracked file: " .. err)
     else

@@ -145,6 +145,7 @@ Setup entry point:
         folder_open = "",
       },
       view_mode = "list",
+      flatten_dirs = true,
       file_filter = {
         ignore = { ".git/**", ".jj/**" },
       },

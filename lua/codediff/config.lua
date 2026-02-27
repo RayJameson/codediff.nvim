@@ -90,6 +90,7 @@ M.defaults = {
       diff_get = "do", -- Get change from other buffer (like vimdiff)
       diff_put = "dp", -- Put change to other buffer (like vimdiff)
       open_in_prev_tab = "gf", -- Open current buffer in previous tab (or new tab before current)
+      close_on_open_in_prev_tab = false, -- Close codediff tab after opening in previous tab
       toggle_stage = "-", -- Stage/unstage current file (works in explorer and diff buffers)
       stage_hunk = "<leader>hs", -- Stage the hunk under cursor to git index
       unstage_hunk = "<leader>hu", -- Unstage the hunk under cursor from git index

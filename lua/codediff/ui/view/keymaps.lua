@@ -305,6 +305,15 @@ function M.setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explore
     end
 
     pcall(vim.api.nvim_win_set_cursor, target_win, cursor)
+
+    -- Optionally close codediff after navigating to file
+    if config.options.keymaps.view.close_on_open_in_prev_tab then
+      -- Switch back to diff tab and close it
+      if vim.api.nvim_tabpage_is_valid(current_tab) then
+        vim.api.nvim_set_current_tabpage(current_tab)
+        vim.cmd("tabclose")
+      end
+    end
   end
 
   -- ========================================================================
@@ -675,7 +684,9 @@ function M.setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explore
     if keymaps.hunk_textobject then
       local function select_hunk()
         local mapping = find_hunk_at_cursor()
-        if not mapping then return end
+        if not mapping then
+          return
+        end
 
         local current_buf = vim.api.nvim_get_current_buf()
         local is_original = current_buf == original_bufnr
@@ -683,7 +694,9 @@ function M.setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explore
         local end_line = is_original and mapping.original.end_line or mapping.modified.end_line
 
         -- end_line is exclusive, and empty ranges (deletions) can't be selected
-        if start_line >= end_line then return end
+        if start_line >= end_line then
+          return
+        end
 
         vim.cmd("normal! " .. start_line .. "GV" .. (end_line - 1) .. "G")
       end

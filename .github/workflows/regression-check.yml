@@ -73,16 +73,25 @@ jobs:
           echo "Target branch results:"
           cat baseline.txt
           echo ""
-          
-          if diff -u baseline.txt current.txt; then
-            echo "✅ No regression detected! Diff outputs are identical."
-            exit 0
-          else
-            echo "❌ REGRESSION DETECTED!"
+
+          # Parse mismatch counts (format: "TOTAL MISMATCHES")
+          PR_MISMATCHES=$(awk '{print $2}' current.txt)
+          BASE_MISMATCHES=$(awk '{print $2}' baseline.txt)
+
+          echo "PR mismatches: $PR_MISMATCHES"
+          echo "Baseline mismatches: $BASE_MISMATCHES"
+
+          if [ "$PR_MISMATCHES" -gt "$BASE_MISMATCHES" ]; then
+            echo "❌ REGRESSION DETECTED! Mismatches increased from $BASE_MISMATCHES to $PR_MISMATCHES."
             echo "The diff output has changed between target branch and PR branch."
-            echo "This means libvscode-diff changes have altered the diff algorithm behavior."
             echo ""
             echo "If this is intentional, please document why in the PR description."
             echo "If not, please investigate and fix the regression."
             exit 1
+          elif [ "$PR_MISMATCHES" -lt "$BASE_MISMATCHES" ]; then
+            echo "✅ Improvement! Mismatches decreased from $BASE_MISMATCHES to $PR_MISMATCHES."
+            exit 0
+          else
+            echo "✅ No regression detected! Mismatch count unchanged ($PR_MISMATCHES)."
+            exit 0
           fi

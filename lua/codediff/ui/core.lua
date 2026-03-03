@@ -33,8 +33,11 @@ local function insert_filler_lines(bufnr, after_line_0idx, count)
     return
   end
 
+  local above = false
   if after_line_0idx < 0 then
+    -- Deletion at start of file: place fillers ABOVE line 1
     after_line_0idx = 0
+    above = true
   end
 
   local virt_lines_content = {}
@@ -46,7 +49,7 @@ local function insert_filler_lines(bufnr, after_line_0idx, count)
 
   vim.api.nvim_buf_set_extmark(bufnr, ns_filler, after_line_0idx, 0, {
     virt_lines = virt_lines_content,
-    virt_lines_above = false,
+    virt_lines_above = above,
   })
 end
 
@@ -359,6 +362,10 @@ function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, 
       end
     end
   end
+
+  -- Render moved code indicators (separate module)
+  local move = require("codediff.ui.move")
+  move.render_moves(left_bufnr, right_bufnr, lines_diff)
 
   return {
     left_fillers = total_left_fillers,

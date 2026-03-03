@@ -590,4 +590,37 @@ function M.show_single_file(tabpage, file_path, opts)
   view_keymaps.setup_all_keymaps(tabpage, empty_buf, file_bufnr, true)
 end
 
+--- Show the welcome page in the inline diff window
+---@param tabpage number
+---@param load_bufnr number Welcome buffer created by welcome.create_buffer
+function M.show_welcome(tabpage, load_bufnr)
+  local session = lifecycle.get_session(tabpage)
+  if not session then
+    return
+  end
+
+  local mod_win = session.modified_win
+  if not mod_win or not vim.api.nvim_win_is_valid(mod_win) then
+    return
+  end
+
+  if session.modified_bufnr and vim.api.nvim_buf_is_valid(session.modified_bufnr) then
+    inline.clear(session.modified_bufnr)
+    auto_refresh.disable(session.modified_bufnr)
+  end
+
+  vim.api.nvim_win_set_buf(mod_win, load_bufnr)
+
+  local empty_buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[empty_buf].buftype = "nofile"
+
+  lifecycle.update_buffers(tabpage, empty_buf, load_bufnr)
+  lifecycle.update_paths(tabpage, "", "")
+  lifecycle.update_revisions(tabpage, nil, nil)
+  lifecycle.update_diff_result(tabpage, {})
+
+  local view_keymaps = require("codediff.ui.view.keymaps")
+  view_keymaps.setup_all_keymaps(tabpage, empty_buf, load_bufnr, true)
+end
+
 return M

@@ -805,4 +805,12 @@ function M.show_deleted_virtual_file(tabpage, git_root, file_path, revision)
   })
 end
 
+--- Show the welcome page in a single pane (modified side)
+function M.show_welcome(tabpage, load_bufnr)
+  show_single_file(tabpage, {
+    keep = "modified",
+    load_bufnr = load_bufnr,
+  })
+end
+
 return M

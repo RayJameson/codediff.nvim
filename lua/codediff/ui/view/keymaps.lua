@@ -683,9 +683,13 @@ function M.setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explore
 
   -- Help keymap (g?) - show floating window with available keymaps
   if keymaps.show_help then
-    local help = require("codediff.ui.keymap_help")
     lifecycle.set_tab_keymap(tabpage, "n", keymaps.show_help, function()
-      help.toggle(tabpage)
+      local ok, help = pcall(require, "codediff.ui.keymap_help")
+      if ok and help then
+        help.toggle(tabpage)
+      else
+        vim.notify_once("[codediff] failed to load codediff.ui.keymap_help: " .. tostring(help), vim.log.levels.WARN)
+      end
     end, { desc = "Show keymap help" })
   end
 

@@ -91,8 +91,6 @@ function M.create_session(
 
     -- Lifecycle state
     layout = "side-by-side",
-    display_state = nil,
-    diff_config = nil,
     suspended = false,
     stored_diff_result = lines_diff,
     changedtick = {

@@ -7,6 +7,7 @@ local lifecycle = require("codediff.ui.lifecycle")
 local side_by_side = require("codediff.ui.view.side_by_side")
 local welcome = require("codediff.ui.welcome")
 local navigation = require("codediff.ui.view.navigation")
+local inline = require("codediff.ui.inline")
 
 local function setup_command()
   pcall(vim.api.nvim_del_user_command, "CodeDiff")
@@ -84,6 +85,66 @@ local function open_codediff_and_wait(repo, entry_file)
 
   local session = lifecycle.get_session(tabpage)
   return tabpage, session, session.explorer
+end
+
+local function open_history_and_wait(repo, entry_file)
+  local git = require("codediff.core.git")
+  local commits
+  local err
+  local file_path = entry_file or "file.txt"
+
+  git.get_commit_list("", repo.dir, {
+    no_merges = true,
+    path = file_path,
+  }, function(cb_err, cb_commits)
+    err = cb_err
+    commits = cb_commits
+  end)
+
+  local commits_ready = vim.wait(10000, function()
+    return err ~= nil or commits ~= nil
+  end, 100)
+
+  assert.is_true(commits_ready, "History commits should load")
+  assert.is_nil(err, "History commit list should load without error")
+  assert.is_true(commits and #commits > 0, "History should contain commits")
+
+  view.create({
+    mode = "history",
+    git_root = repo.dir,
+    original_path = "",
+    modified_path = "",
+    history_data = {
+      commits = commits,
+      range = "",
+      file_path = file_path,
+    },
+  }, "")
+
+  local tabpage
+  local history
+  local ready = vim.wait(10000, function()
+    for _, tp in ipairs(vim.api.nvim_list_tabpages()) do
+      local session = lifecycle.get_session(tp)
+      local panel = lifecycle.get_explorer(tp)
+      if session and session.mode == "history" and panel then
+        tabpage = tp
+        history = panel
+        return history.current_selection
+          and session.original_revision
+          and session.modified_revision
+          and session.original_bufnr
+          and session.modified_bufnr
+          and vim.api.nvim_buf_is_valid(session.original_bufnr)
+          and vim.api.nvim_buf_is_valid(session.modified_bufnr)
+      end
+    end
+    return false
+  end, 100)
+
+  assert.is_true(ready, "CodeDiff history session should be ready")
+
+  return tabpage, lifecycle.get_session(tabpage), history
 end
 
 local function select_explorer_file(tabpage, explorer, file_data, wait_for)
@@ -190,7 +251,6 @@ describe("Layout toggle", function()
     end, 50)
     assert.is_true(toggled_inline, "Diff should toggle into inline layout")
     assert.equals("side-by-side", require("codediff.config").options.diff.layout)
-    assert.equals("diff", lifecycle.get_display_state(tabpage).kind)
 
     assert.is_true(view.toggle_layout(tabpage))
     local toggled_back = vim.wait(5000, function()
@@ -206,6 +266,54 @@ describe("Layout toggle", function()
     end, 50)
     assert.is_true(toggled_back, "Diff should toggle back into side-by-side layout")
     assert.equals("side-by-side", require("codediff.config").options.diff.layout)
+  end)
+
+  it("rerenders the current history selection when toggling layouts", function()
+    repo = h.create_temp_git_repo()
+    repo.write_file("file.txt", { "version 1", "shared" })
+    repo.git("add file.txt")
+    repo.git("commit -m 'first'")
+    repo.write_file("file.txt", { "version 2", "shared", "added line" })
+    repo.git("add file.txt")
+    repo.git("commit -m 'second'")
+    repo.write_file("file.txt", { "version 3", "shared changed", "added line" })
+    repo.git("add file.txt")
+    repo.git("commit -m 'third'")
+
+    local tabpage, session, history = open_history_and_wait(repo, "file.txt")
+    local selected = vim.deepcopy(history.current_selection)
+
+    assert.equals("side-by-side", session.layout)
+    assert.is_not_nil(selected, "History should track the current file selection")
+
+    assert.is_true(view.toggle_layout(tabpage))
+    wait_for(tabpage, function(current_session)
+      local current_history = lifecycle.get_explorer(tabpage)
+      local mod_buf = current_session.modified_bufnr
+      local marks = mod_buf and vim.api.nvim_buf_is_valid(mod_buf) and vim.api.nvim_buf_get_extmarks(mod_buf, inline.ns_inline, 0, -1, {}) or {}
+      return current_session.layout == "inline"
+        and current_session.original_win == current_session.modified_win
+        and current_history
+        and current_history.current_selection
+        and current_history.current_selection.commit_hash == selected.commit_hash
+        and current_history.current_selection.path == selected.path
+        and #marks > 0
+    end, "History toggle should replay the selected file as a native inline render")
+
+    assert.is_true(view.toggle_layout(tabpage))
+    wait_for(tabpage, function(current_session)
+      local current_history = lifecycle.get_explorer(tabpage)
+      return current_session.layout == "side-by-side"
+        and current_session.original_win
+        and current_session.modified_win
+        and current_session.original_win ~= current_session.modified_win
+        and vim.api.nvim_win_is_valid(current_session.original_win)
+        and vim.api.nvim_win_is_valid(current_session.modified_win)
+        and current_history
+        and current_history.current_selection
+        and current_history.current_selection.commit_hash == selected.commit_hash
+        and current_history.current_selection.path == selected.path
+    end, "History toggle should restore the same selected file in side-by-side mode")
   end)
 
   it("toggles an untracked single-file preview without losing preview state", function()
@@ -233,13 +341,9 @@ describe("Layout toggle", function()
     assert.is_true(view.toggle_layout(tabpage))
     local inline_ready = vim.wait(5000, function()
       local session = lifecycle.get_session(tabpage)
-      local display_state = lifecycle.get_display_state(tabpage)
       return session
-        and display_state
         and session.layout == "inline"
         and session.original_win == session.modified_win
-        and display_state.kind == "single_file"
-        and display_state.side == "modified"
         and session.modified_path == file_path
     end, 50)
     assert.is_true(inline_ready, "Untracked preview should toggle into inline layout")
@@ -247,16 +351,12 @@ describe("Layout toggle", function()
     assert.is_true(view.toggle_layout(tabpage))
     local side_by_side_ready = vim.wait(5000, function()
       local session = lifecycle.get_session(tabpage)
-      local display_state = lifecycle.get_display_state(tabpage)
       return session
-        and display_state
         and session.layout == "side-by-side"
         and session.single_pane == true
         and session.modified_path == file_path
         and session.modified_win
         and not session.original_win
-        and display_state.kind == "single_file"
-        and display_state.side == "modified"
         and vim.api.nvim_win_is_valid(session.modified_win)
     end, 50)
     assert.is_true(side_by_side_ready, "Untracked preview should toggle back into single-pane side-by-side")
@@ -288,14 +388,10 @@ describe("Layout toggle", function()
     assert.is_true(view.toggle_layout(tabpage))
     local inline_deleted_ready = vim.wait(5000, function()
       local session = lifecycle.get_session(tabpage)
-      local display_state = lifecycle.get_display_state(tabpage)
       local diff_buf = session and session.original_win and vim.api.nvim_win_is_valid(session.original_win) and vim.api.nvim_win_get_buf(session.original_win) or nil
       return session
-        and display_state
         and session.layout == "inline"
         and session.original_win == session.modified_win
-        and display_state.kind == "single_file"
-        and display_state.side == "original"
         and session.original_bufnr == diff_buf
         and session.original_revision == ":0"
         and session.original_path == "gone.txt"
@@ -306,16 +402,12 @@ describe("Layout toggle", function()
     assert.is_true(view.toggle_layout(tabpage))
     local restored_deleted_ready = vim.wait(5000, function()
       local session = lifecycle.get_session(tabpage)
-      local display_state = lifecycle.get_display_state(tabpage)
       return session
-        and display_state
         and session.layout == "side-by-side"
         and session.single_pane == true
         and session.original_win
         and not session.modified_win
         and session.original_path == repo.path("gone.txt")
-        and display_state.kind == "single_file"
-        and display_state.side == "original"
         and vim.api.nvim_win_is_valid(session.original_win)
     end, 50)
     assert.is_true(restored_deleted_ready, "Deleted preview should restore to the original side in side-by-side mode")
@@ -335,12 +427,9 @@ describe("Layout toggle", function()
     assert.is_true(view.toggle_layout(tabpage))
     local inline_welcome = vim.wait(5000, function()
       local session = lifecycle.get_session(tabpage)
-      local display_state = lifecycle.get_display_state(tabpage)
       return session
-        and display_state
         and session.layout == "inline"
         and session.original_win == session.modified_win
-        and display_state.kind == "welcome"
         and welcome.is_welcome_buffer(session.modified_bufnr)
     end, 50)
     assert.is_true(inline_welcome, "Welcome page should toggle into inline layout")
@@ -348,14 +437,11 @@ describe("Layout toggle", function()
     assert.is_true(view.toggle_layout(tabpage))
     local restored_welcome = vim.wait(5000, function()
       local session = lifecycle.get_session(tabpage)
-      local display_state = lifecycle.get_display_state(tabpage)
       return session
-        and display_state
         and session.layout == "side-by-side"
         and session.single_pane == true
         and session.modified_win
         and not session.original_win
-        and display_state.kind == "welcome"
         and welcome.is_welcome_buffer(session.modified_bufnr)
     end, 50)
     assert.is_true(restored_welcome, "Welcome page should toggle back into side-by-side welcome state")

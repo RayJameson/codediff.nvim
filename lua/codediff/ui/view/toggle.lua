@@ -56,22 +56,10 @@ local function normalize_side_by_side_layout(tabpage)
   return true
 end
 
-local function build_session_diff_config(session, diff_config)
-  if diff_config then
-    return vim.deepcopy(diff_config)
-  end
-
-  return {
-    mode = session.mode,
-    git_root = session.git_root,
-    original_path = session.original_path,
-    modified_path = session.modified_path,
-    original_revision = session.original_revision,
-    modified_revision = session.modified_revision,
-  }
-end
-
-local function rerender_current_source(tabpage)
+-- Re-render the current file in the new layout.
+-- For explorer/history: call rerender_current which re-triggers on_file_select.
+-- For standalone: rebuild session_config from existing session fields.
+local function rerender_current_file(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
     return false
@@ -87,8 +75,16 @@ local function rerender_current_source(tabpage)
     return history and require("codediff.ui.history").rerender_current(history) or false
   end
 
-  local diff_config = lifecycle.get_diff_config(tabpage)
-  return require("codediff.ui.view").update(tabpage, build_session_diff_config(session, diff_config), false)
+  -- Standalone mode: rebuild from session fields
+  local session_config = {
+    mode = session.mode,
+    git_root = session.git_root,
+    original_path = session.original_path,
+    modified_path = session.modified_path,
+    original_revision = session.original_revision,
+    modified_revision = session.modified_revision,
+  }
+  return require("codediff.ui.view").update(tabpage, session_config, false)
 end
 
 function M.toggle(tabpage)
@@ -111,13 +107,11 @@ function M.toggle(tabpage)
     return false
   end
 
-  if rerender_current_source(tabpage) then
+  if rerender_current_file(tabpage) then
     layout.arrange(tabpage)
-    return true
   end
 
-  lifecycle.update_layout(tabpage, previous_layout)
-  return false
+  return true
 end
 
 return M

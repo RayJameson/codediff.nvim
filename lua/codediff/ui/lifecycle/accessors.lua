@@ -38,20 +38,6 @@ function M.get_layout(tabpage)
   return sess and sess.layout or nil
 end
 
---- Get current rendered display state
-function M.get_display_state(tabpage)
-  local active_diffs = get_active_diffs()
-  local sess = active_diffs[tabpage]
-  return sess and sess.display_state or nil
-end
-
---- Get current diff config for rerendering
-function M.get_diff_config(tabpage)
-  local active_diffs = get_active_diffs()
-  local sess = active_diffs[tabpage]
-  return sess and sess.diff_config or nil
-end
-
 --- Get git context
 function M.get_git_context(tabpage)
   local active_diffs = get_active_diffs()
@@ -225,30 +211,6 @@ function M.update_layout(tabpage, layout)
   end
 
   sess.layout = layout
-  return true
-end
-
---- Update rendered display state
-function M.update_display_state(tabpage, display_state)
-  local active_diffs = get_active_diffs()
-  local sess = active_diffs[tabpage]
-  if not sess then
-    return false
-  end
-
-  sess.display_state = display_state
-  return true
-end
-
---- Update current diff config for rerendering
-function M.update_diff_config(tabpage, diff_config)
-  local active_diffs = get_active_diffs()
-  local sess = active_diffs[tabpage]
-  if not sess then
-    return false
-  end
-
-  sess.diff_config = diff_config
   return true
 end
 

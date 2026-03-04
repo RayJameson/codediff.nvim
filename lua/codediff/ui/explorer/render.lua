@@ -574,12 +574,7 @@ function M.rerender_current(explorer)
     return true
   end
 
-  if session.layout == "inline" then
-    require("codediff.ui.view.inline_view").show_placeholder(explorer.tabpage)
-  else
-    require("codediff.ui.view.side_by_side").show_placeholder(explorer.tabpage)
-  end
-  return true
+  return false
 end
 
 M.show_welcome_page = show_welcome_page

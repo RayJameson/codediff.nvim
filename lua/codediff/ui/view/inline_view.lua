@@ -16,51 +16,6 @@ local panel = require("codediff.ui.view.panel")
 local is_virtual_revision = helpers.is_virtual_revision
 local prepare_buffer = helpers.prepare_buffer
 
-local function copy_session_config(session_config)
-  return {
-    mode = session_config.mode,
-    git_root = session_config.git_root,
-    original_path = session_config.original_path or "",
-    modified_path = session_config.modified_path or "",
-    original_revision = session_config.original_revision,
-    modified_revision = session_config.modified_revision,
-    conflict = session_config.conflict,
-    line_range = session_config.line_range,
-  }
-end
-
-local function set_display_state(tabpage, kind, data)
-  lifecycle.update_layout(tabpage, "inline")
-  local display_state = vim.tbl_extend("force", { kind = kind }, data or {})
-  lifecycle.update_display_state(tabpage, display_state)
-  if kind ~= "diff" then
-    lifecycle.update_diff_config(tabpage, nil)
-  end
-end
-
-local function build_single_file_state(tabpage, file_path, opts)
-  local session = lifecycle.get_session(tabpage)
-  local side = opts.side or "modified"
-  return {
-    kind = "single_file",
-    side = side,
-    load = {
-      path = file_path,
-      revision = opts.revision,
-      git_root = opts.git_root,
-      rel_path = opts.rel_path,
-    },
-    session_config = opts.session_config or {
-      mode = session and session.mode or "explorer",
-      git_root = opts.git_root or (session and session.git_root) or nil,
-      original_path = side == "original" and (opts.rel_path or file_path) or "",
-      modified_path = side == "modified" and file_path or "",
-      original_revision = side == "original" and opts.revision or nil,
-      modified_revision = side == "modified" and opts.revision or nil,
-    },
-  }
-end
-
 -- ============================================================================
 -- Compute diff and render inline highlights
 -- ============================================================================
@@ -182,8 +137,6 @@ function M.create(session_config, filetype, on_ready)
     )
 
     mark_inline(tabpage)
-    set_display_state(tabpage, "empty")
-
     -- Setup panels via shared module
     panel.setup_explorer(tabpage, session_config, modified_win, modified_win)
     panel.setup_history(tabpage, session_config, modified_win, modified_win, orig_scratch, mod_scratch, function(tp, ob, mb)
@@ -283,8 +236,6 @@ function M.create(session_config, filetype, on_ready)
       )
 
       mark_inline(tabpage)
-      lifecycle.update_diff_config(tabpage, copy_session_config(session_config))
-      set_display_state(tabpage, "diff", { session_config = copy_session_config(session_config) })
 
       if not modified_is_virtual then
         auto_refresh.enable(modified_info.bufnr)
@@ -450,8 +401,6 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
       lifecycle.update_diff_result(tabpage, lines_diff)
       lifecycle.update_changedtick(tabpage, vim.api.nvim_buf_get_changedtick(orig_buf), vim.api.nvim_buf_get_changedtick(mod_buf))
       lifecycle.update_paths(tabpage, session_config.original_path or "", session_config.modified_path or "")
-      lifecycle.update_diff_config(tabpage, copy_session_config(session_config))
-      set_display_state(tabpage, "diff", { session_config = copy_session_config(session_config) })
 
       if not modified_is_virtual then
         auto_refresh.enable(mod_buf)
@@ -649,43 +598,11 @@ function M.show_single_file(tabpage, file_path, opts)
   lifecycle.update_paths(tabpage, original_path, modified_path)
   lifecycle.update_revisions(tabpage, original_revision, modified_revision)
   lifecycle.update_diff_result(tabpage, {})
-  lifecycle.update_diff_config(tabpage, nil)
-  lifecycle.update_display_state(tabpage, build_single_file_state(tabpage, file_path, opts))
 
   local view_keymaps = require("codediff.ui.view.keymaps")
   view_keymaps.setup_all_keymaps(tabpage, orig_bufnr, mod_bufnr, session.mode == "explorer")
   layout.arrange(tabpage)
   welcome_window.sync_later(mod_win)
-end
-
-function M.show_placeholder(tabpage)
-  local session = lifecycle.get_session(tabpage)
-  if not session then
-    return
-  end
-
-  lifecycle.update_layout(tabpage, "inline")
-  local mod_win = session.modified_win
-  if not mod_win or not vim.api.nvim_win_is_valid(mod_win) then
-    return
-  end
-
-  local mod_scratch = vim.api.nvim_create_buf(false, true)
-  local orig_scratch = vim.api.nvim_create_buf(false, true)
-  vim.bo[mod_scratch].buftype = "nofile"
-  vim.bo[orig_scratch].buftype = "nofile"
-  vim.api.nvim_win_set_buf(mod_win, mod_scratch)
-  welcome_window.sync(mod_win)
-
-  lifecycle.update_buffers(tabpage, orig_scratch, mod_scratch)
-  lifecycle.update_paths(tabpage, "", "")
-  lifecycle.update_revisions(tabpage, nil, nil)
-  lifecycle.update_diff_result(tabpage, {})
-  set_display_state(tabpage, "empty")
-
-  local view_keymaps = require("codediff.ui.view.keymaps")
-  view_keymaps.setup_all_keymaps(tabpage, orig_scratch, mod_scratch, session.mode == "explorer")
-  layout.arrange(tabpage)
 end
 
 --- Show the welcome page in the inline diff window
@@ -718,7 +635,6 @@ function M.show_welcome(tabpage, load_bufnr)
   lifecycle.update_paths(tabpage, "", "")
   lifecycle.update_revisions(tabpage, nil, nil)
   lifecycle.update_diff_result(tabpage, {})
-  set_display_state(tabpage, "welcome")
 
   local view_keymaps = require("codediff.ui.view.keymaps")
   view_keymaps.setup_all_keymaps(tabpage, empty_buf, load_bufnr, session.mode == "explorer")

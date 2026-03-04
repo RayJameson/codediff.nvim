@@ -99,7 +99,7 @@ M.defaults = {
       discard_hunk = "<leader>hr", -- Discard the hunk under cursor (working tree only)
       hunk_textobject = "ih", -- Textobject for hunk (vih to select, yih to yank, etc.)
       align_move = "gm", -- Temporarily align other pane to show paired moved code
-      toggle_layout = "gl", -- Toggle diff layout for the current codediff session
+      toggle_layout = "t", -- Toggle diff layout for the current codediff session
       show_help = "g?", -- Show floating window with available keymaps
     },
     explorer = {

@@ -22,10 +22,6 @@ local function get_layout(session_config, tabpage)
   return config.options.diff.layout
 end
 
-local function current_layout(tabpage)
-  return get_layout(nil, tabpage)
-end
-
 ---@class SessionConfig
 ---@field mode "standalone"|"explorer"|"history"
 ---@field git_root string?
@@ -75,7 +71,7 @@ function M.toggle_layout(tabpage)
 end
 
 function M.get_current_layout(tabpage)
-  return current_layout(tabpage)
+  return get_layout(nil, tabpage)
 end
 
 return M

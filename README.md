@@ -362,7 +362,7 @@ Compare two directories without git:
 :CodeDiff dir /path/to/dir1 /path/to/dir2
 ```
 
-Shows files as Added (A), Deleted (D), or Modified (M) based on file size and modification time. Select a file to view its diff.
+Shows files as Added (A), Deleted (D), or Modified (M) using file size plus byte-level content comparison. Select a file to view its diff.
 
 ### File History Mode
 
